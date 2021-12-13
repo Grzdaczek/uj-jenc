@@ -1,41 +1,38 @@
+#![allow(dead_code)]
+
+use std::f32::consts::PI;
+
 fn main() {
-    let x: Vec<f64> = vec![
-        1.0,
-        1.0,
-        1.0,
-        1.0,
-    ];
+    let mut x = Vec::new();
+
+    for _ in 0..4 {
+        x.push(255.0);
+    }
+
+    for _ in 0..4 {
+        x.push(0.0);
+    }
 
     let x_hat = dct2(&x);
 
-    println!("{:?}", x_hat);
-}
-
-fn dct2(x: & Vec<f64>) -> Vec<f64> {
-    let n_large = x.len();
-    let mut x_hat = Vec::with_capacity(n_large);
-    unsafe { x_hat.set_len(n_larg); }
-
-    const PI = 3.1415;
-
-    for k in 0..n_large {
-        x_hat[k] = x
-            .iter()
-            .enumerate()
-            .map(|(i, xn)| {
-                xn * ((PI / n_large as f64) * (n + 1/2) * k).cos()
-            })
-            .sum();
-    }
-
     x_hat
-        .iter_mut()
+        .iter()
         .enumerate()
-        .for_each(|(i, xn)| {});
-    
-    x_hat
+        .for_each(|(n, x)| println!("{}: {}", n, x));
+
 }
 
-fn dct3() {
-
+fn dct2(x: & Vec<f32>) -> Vec<f32> {
+    let len = x.len();
+    let step = PI / len as f32;
+    
+    return (0..len)
+		.map(|k| match k {
+            0 => (1.0 / (len as f32).sqrt()) * x.iter().sum::<f32>(),
+            _ => (2.0 / len as f32).sqrt() * x.iter()
+                .enumerate()
+                .map(|(n, xn)| xn * ( step * k as f32 * (0.5 + n as f32)).cos() )
+                .sum::<f32>(),
+        })
+        .collect::<Vec<f32>>();
 }

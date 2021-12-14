@@ -1,3 +1,6 @@
+#![forbid(unsafe_code)]
+// #![deny(missing_docs)]
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -6,3 +9,5 @@ mod tests {
         assert_eq!(result, 4);
     }
 }
+
+pub mod unit;

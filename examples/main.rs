@@ -1,24 +1,38 @@
 #![allow(dead_code)]
+#![allow(unused_variables)]
+
+extern crate uj_jenc as jenc;
 
 use std::f32::consts::PI;
+use jenc::unit::Unit;
 
 fn main() {
-    let mut x = Vec::new();
+    let mut unit = Unit::<u8>::new();
 
-    for _ in 0..4 {
-        x.push(255.0);
-    }
+    unit[(1, 1)] = 10;
+    println!("{:?}", unit);
 
-    for _ in 0..4 {
-        x.push(0.0);
-    }
+    // let mut x = Vec::new();
 
-    let x_hat = dct2(&x);
+    // for _ in 0..4 {
+    //     x.push(255.0);
+    // }
 
-    x_hat
-        .iter()
-        .enumerate()
-        .for_each(|(n, x)| println!("{}: {}", n, x));
+    // for _ in 0..4 {
+    //     x.push(0.0);
+    // }
+
+    // let x_hat = dct2(&x);
+
+    // x_hat
+    //     .iter()
+    //     .enumerate()
+    //     .for_each(|(n, x)| println!("{}: {}", n, x));
+
+    // unit
+    //     .into_iter()
+    //     .enumerate()
+    //     .for_each(|(n, x)| println!("{}: {}", n, x));
 
 }
 

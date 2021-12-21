@@ -1,14 +1,30 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-use uj_jenc::pixel::*;
-
+use std::fs;
+use uj_jenc::codec::*;
 fn main() {
-    // let file_name = "./image.ppm";
+    let buff = fs::read("/home/grzdaczek/repos/uj-jenc/examples/in_image.ppm").unwrap();
 
-    let img_1 = Pixelmap::<Rgb>::new(8, 8);
-    let img_2 = img_1.into_pixelmap::<Ycbcr>();
+    // let hjpg = hjpg::Hjpg::new({});
+    let ppm_codec = ppm::Ppm::new();
+    
+    let mut  img = ppm_codec.decode(&buff);
 
-    // println!("{:?}", img_1);
-    // println!("{:?}", img_2);
+    img.data_mut()
+        .iter_mut()
+        .for_each(|p| {
+            p.r = 0xFF;
+        });
+
+    let buff = ppm_codec.encode(&img);
+
+    // println!("{:?}", img.data()[0]);
+    
+    // let buff = hjpg.encode(img);
+    // let img = hjpg.decode(buff);
+
+    // let buff = ppm.encode(buff);
+
+    fs::write("./out_image.ppm", buff).unwrap();
 }

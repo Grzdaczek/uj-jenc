@@ -1,19 +1,20 @@
 #![allow(dead_code)]
 
-use crate::traits::Color;
+use crate::color::FromColor;
 
-pub struct Image<C: Color> {
-    data: Vec<C>,
+#[derive(Debug, Clone)]
+pub struct Image<T> {
+    data: Vec<T>,
     width: usize,
     height: usize,
 }
 
-impl<C: Color> Image<C> {
-    pub fn data(&self) -> &Vec<C> {
+impl<T> Image<T> {
+    pub fn data(&self) -> &Vec<T> {
         &self.data
     }
     
-    pub fn data_mut(& mut self) -> & mut Vec<C> {
+    pub fn data_mut(& mut self) -> & mut Vec<T> {
         & mut self.data
     }
 
@@ -24,12 +25,23 @@ impl<C: Color> Image<C> {
     pub fn height(&self) -> usize {
         self.height
     }
+
+    pub fn from_image<Other>(other: &Image<Other>) -> Self 
+    where
+        T: FromColor<Other>
+    {
+        Self {
+            data: other.data
+                .iter()
+                .map(T::from_color)
+                .collect(),
+            width: other.width,
+            height: other.height,
+        }
+    }
 }
 
-impl<T> Image<T>
-where
-    T:  Color + Default + Clone + Copy
-{
+impl<T> Image<T> {
     pub fn new(width: usize, height: usize, data: Vec<T>) -> Self {
         Self {
             data,

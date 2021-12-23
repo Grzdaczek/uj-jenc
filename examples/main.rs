@@ -3,28 +3,20 @@
 
 use std::fs;
 use uj_jenc::codec::*;
+use uj_jenc::color::*;
+use uj_jenc::image::*;
 fn main() {
-    let buff = fs::read("/home/grzdaczek/repos/uj-jenc/examples/in_image.ppm").unwrap();
+    let buff = fs::read("./examples/in_image.ppm").unwrap();
 
     // let hjpg = hjpg::Hjpg::new({});
     let ppm_codec = ppm::Ppm::new();
     
-    let mut  img = ppm_codec.decode(&buff);
-
-    img.data_mut()
-        .iter_mut()
-        .for_each(|p| {
-            p.r = 0xFF;
-        });
-
-    let buff = ppm_codec.encode(&img);
-
-    // println!("{:?}", img.data()[0]);
+    let rgb = ppm_codec.decode(&buff);
     
-    // let buff = hjpg.encode(img);
-    // let img = hjpg.decode(buff);
+    let mut ycbcr = Image::<YcbcrU8>::from_image(&rgb);
 
-    // let buff = ppm.encode(buff);
+    let rgb = Image::<RgbU8>::from_image(&ycbcr);
 
-    fs::write("./out_image.ppm", buff).unwrap();
+    let buff = ppm_codec.encode(&rgb);
+    fs::write("./examples/out_image.ppm", buff).unwrap();
 }

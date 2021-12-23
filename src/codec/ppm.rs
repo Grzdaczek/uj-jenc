@@ -15,16 +15,6 @@ impl Ppm {
     }
 }
 
-pub trait SomeTrait {
-    fn do_something();
-}
-
-impl SomeTrait for Ppm {
-    fn do_something() {
-        println!("Something!");
-    }
-}
-
 impl Encode<RgbU8> for Ppm {
     fn encode(&self, image: &Image<RgbU8>) -> Vec<u8> {
         let mut buffer: Vec<u8> = Vec::new();

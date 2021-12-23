@@ -4,4 +4,3 @@
 pub mod codec;
 pub mod color;
 pub mod image;
-pub mod traits;

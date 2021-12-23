@@ -1,10 +1,12 @@
 #![allow(dead_code)]
 
 pub type RgbU8 = Rgb<u8>;
+pub type LumaU8 = Luma<u8>;
 pub type YcbcrU8 = Ycbcr<u8>;
 
-pub trait FromColor<T> {
-    fn from_color(other: &T) -> Self;
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Luma<T> {
+    pub y: T,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -21,14 +23,8 @@ pub struct Ycbcr<T> {
     pub cr: T,
 }
 
-impl<T: Clone> FromColor<T> for T {
-    fn from_color(other: &T) -> Self {
-        return other.clone();
-    }
-}
-
-impl FromColor<RgbU8> for YcbcrU8 {
-    fn from_color(other: &RgbU8) -> Self {
+impl From<RgbU8> for YcbcrU8 {
+    fn from(other: RgbU8) -> Self {
         let r = other.r as f32;
         let g = other.g as f32;
         let b = other.b as f32;
@@ -41,8 +37,8 @@ impl FromColor<RgbU8> for YcbcrU8 {
     }
 }
 
-impl FromColor<YcbcrU8> for RgbU8 {
-    fn from_color(other: &YcbcrU8) -> Self {
+impl From<YcbcrU8> for RgbU8 {
+    fn from(other: YcbcrU8) -> Self {
         let y = other.y as f32;
         let cb = (other.cb as f32) - 128.0;
         let cr = (other.cr as f32) - 128.0;

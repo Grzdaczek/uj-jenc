@@ -1,7 +1,5 @@
 #![allow(dead_code)]
 
-use crate::color::FromColor;
-
 #[derive(Debug, Clone)]
 pub struct Image<T> {
     data: Vec<T>,
@@ -25,20 +23,6 @@ impl<T> Image<T> {
     pub fn height(&self) -> usize {
         self.height
     }
-
-    pub fn from_image<Other>(other: &Image<Other>) -> Self 
-    where
-        T: FromColor<Other>
-    {
-        Self {
-            data: other.data
-                .iter()
-                .map(T::from_color)
-                .collect(),
-            width: other.width,
-            height: other.height,
-        }
-    }
 }
 
 impl<T> Image<T> {
@@ -47,6 +31,23 @@ impl<T> Image<T> {
             data,
             width,
             height,
+        }
+    }
+}
+
+impl<F, T> From<&Image<F>> for Image<T> 
+where
+    T: From<F>,
+    F: Copy
+{
+    fn from(other: &Image<F>) -> Self {
+        Self {
+            data: other.data
+                .iter()
+                .map(|&x| T::from(x))
+                .collect(),
+            width: other.width,
+            height: other.height,
         }
     }
 }

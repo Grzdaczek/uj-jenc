@@ -1,20 +1,20 @@
 #![allow(dead_code)]
-#![allow(unused_variables)]
+#![allow(unused)]
 
 use std::fs;
 use uj_jenc::codec::*;
 use uj_jenc::color::*;
 use uj_jenc::image::*;
 fn main() {
-    let buff = fs::read("./examples/in_image.ppm").unwrap();
-
-    let hjpg_codec = rcr::Rcr::new();
+    let rcr_codec = rcr::Rcr::new(50);
     let ppm_codec = ppm::Ppm::new();
-    
-    let rgb = ppm_codec.decode(&buff);
-    let ycbcr: Image<YcbcrU8> = Image::from(&rgb);
-    let rgb: Image::<RgbU8> = Image::from(&ycbcr);
 
-    let buff = ppm_codec.encode(&rgb);
-    fs::write("./examples/out_image.ppm", buff).unwrap();
+    ImageBuffer::read("./examples/in_image.ppm")
+        .unwrap()
+        .decode(&ppm_codec)
+        .encode(&rcr_codec)
+        .decode(&rcr_codec)
+        .encode(&ppm_codec)
+        .write("./examples/out_image.ppm")
+        .unwrap();
 }

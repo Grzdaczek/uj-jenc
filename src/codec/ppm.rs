@@ -2,7 +2,7 @@
 
 use std::io::{BufRead, Cursor, Read};
 
-use crate::image::Image;
+use crate::image::{Image, ImageBuffer};
 use crate::color::RgbU8;
 
 pub use crate::codec::{Decode, Encode};
@@ -16,28 +16,28 @@ impl Ppm {
 }
 
 impl Encode<RgbU8> for Ppm {
-    fn encode(&self, image: &Image<RgbU8>) -> Vec<u8> {
-        let mut buffer: Vec<u8> = Vec::new();
+    fn encode(&self, image: Image<RgbU8>) -> ImageBuffer {
+        let mut data: Vec<u8> = Vec::new();
 
         let header = format!("P6\n{:?} {}\n255\n", image.width(), image.height());
-        buffer.append(& mut header.into_bytes());
+        data.append(& mut header.into_bytes());
 
         image
             .data()
             .iter()
             .for_each(|p| {
-                buffer.push(p.r);
-                buffer.push(p.g);
-                buffer.push(p.b);
+                data.push(p.r);
+                data.push(p.g);
+                data.push(p.b);
             });
 
-        buffer
+        ImageBuffer {data}
     }
 }
 
 impl Decode<RgbU8> for Ppm {
-    fn decode(&self, buffer: &[u8]) -> Image<RgbU8> {
-        let mut cursor = Cursor::new(buffer);
+    fn decode(&self, buffer: ImageBuffer) -> Image<RgbU8> {
+        let mut cursor = Cursor::new(buffer.data);
         
         // read magic number
         let mut str = String::new();

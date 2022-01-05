@@ -2,7 +2,7 @@
 
 use std::{fs, io};
 
-use crate::color::{RgbU8, YcbcrU8};
+use crate::color::{Rgb8, Lab8};
 use crate::codec::{Encode, Decode};
 
 #[derive(Debug, Clone)]
@@ -46,6 +46,10 @@ impl<T> Image<T> {
     pub fn encode(self, encoder: & dyn Encode<T>) -> ImageBuffer {
         encoder.encode(self)
     }
+
+    pub fn at(&self, x: usize, y: usize) -> &T {
+        &self.data[y * self.width + x]
+    }
 }
 
 impl ImageBuffer {
@@ -84,12 +88,12 @@ where
 }
 */
 
-impl From<Image<RgbU8>> for Image<YcbcrU8> {
-    fn from(other: Image<RgbU8>) -> Self {
+impl From<Image<Rgb8>> for Image<Lab8> {
+    fn from(other: Image<Rgb8>) -> Self {
         Self {
             data: other.data
                 .iter()
-                .map(|&x| YcbcrU8::from(x))
+                .map(|&x| Lab8::from(x))
                 .collect(),
             width: other.width,
             height: other.height,
@@ -97,12 +101,12 @@ impl From<Image<RgbU8>> for Image<YcbcrU8> {
     }
 }
 
-impl From<Image<YcbcrU8>> for Image<RgbU8> {
-    fn from(other: Image<YcbcrU8>) -> Self {
+impl From<Image<Lab8>> for Image<Rgb8> {
+    fn from(other: Image<Lab8>) -> Self {
         Self {
             data: other.data
                 .iter()
-                .map(|&x| RgbU8::from(x))
+                .map(|&x| Rgb8::from(x))
                 .collect(),
             width: other.width,
             height: other.height,

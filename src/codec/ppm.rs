@@ -3,9 +3,9 @@
 use std::io::{BufRead, Cursor, Read};
 
 use crate::image::{Image, ImageBuffer};
-use crate::color::RgbU8;
+use crate::color::Rgb8;
 
-pub use crate::codec::{Decode, Encode};
+use super::{Decode, Encode};
 
 pub struct Ppm;
 
@@ -15,8 +15,8 @@ impl Ppm {
     }
 }
 
-impl Encode<RgbU8> for Ppm {
-    fn encode(&self, image: Image<RgbU8>) -> ImageBuffer {
+impl Encode<Rgb8> for Ppm {
+    fn encode(&self, image: Image<Rgb8>) -> ImageBuffer {
         let mut data: Vec<u8> = Vec::new();
 
         let header = format!("P6\n{:?} {}\n255\n", image.width(), image.height());
@@ -35,8 +35,8 @@ impl Encode<RgbU8> for Ppm {
     }
 }
 
-impl Decode<RgbU8> for Ppm {
-    fn decode(&self, buffer: ImageBuffer) -> Image<RgbU8> {
+impl Decode<Rgb8> for Ppm {
+    fn decode(&self, buffer: ImageBuffer) -> Image<Rgb8> {
         let mut cursor = Cursor::new(buffer.data);
         
         // read magic number
@@ -60,11 +60,11 @@ impl Decode<RgbU8> for Ppm {
         assert!(str.trim().eq("255"));
 
         // read image data
-        let mut data: Vec<RgbU8> = Vec::with_capacity(width*height);
+        let mut data: Vec<Rgb8> = Vec::with_capacity(width*height);
         for _ in 0..(width*height) {
             let mut buf :[u8; 3] = [0; 3];
             cursor.read_exact(& mut buf).unwrap();
-            data.push(RgbU8 {
+            data.push(Rgb8 {
                 r: buf[0],
                 g: buf[1],
                 b: buf[2],

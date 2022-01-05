@@ -102,15 +102,8 @@ impl<'a, T> Iterator for ImageUnitIterator<'a, T> where T : Clone {
         let x = self.x;
         let y = self.y;
         let size = self.size;
-
-        self.x += 1;
-
-        if self.x * size == w {
-            self.x = 0;
-            self.y += 1;
-        }
         
-        if self.y * size == h {
+        if y * size == h {
             return None;
         }
         
@@ -123,6 +116,13 @@ impl<'a, T> Iterator for ImageUnitIterator<'a, T> where T : Clone {
                 v.extend_from_slice(slice);
                 return v;
             });
+
+        self.x += 1;
+
+        if self.x * size == w {
+            self.x = 0;
+            self.y += 1;
+        }
 
         Some(Self::Item { data, size })
     }

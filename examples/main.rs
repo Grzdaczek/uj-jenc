@@ -9,12 +9,15 @@ fn main() {
     let rcr_codec = rcr::Rcr::new(50);
     let ppm_codec = ppm::Ppm::new();
 
-    ImageBuffer::read("./examples/in_16x16.ppm")
+    let img: Image<Lab8> = ImageBuffer::read("./examples/in_16x16.ppm")
         .unwrap()
         .decode(&ppm_codec)
-        .encode(&rcr_codec)
-        .decode(&rcr_codec)
-        .encode(&ppm_codec)
+        .into();
+
+    let buf = img.encode(&rcr_codec);
+    let img: Image<Rgb8> = buf.decode(&rcr_codec).into();
+
+    img.encode(&ppm_codec)
         .write("./examples/out_image.ppm")
         .unwrap();
 }

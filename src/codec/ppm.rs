@@ -5,7 +5,7 @@ use std::io::{BufRead, Cursor, Read};
 use crate::image::{Image, ImageBuffer};
 use crate::color::Rgb8;
 
-use super::{Decode, Encode};
+use super::{Decoder, Encoder};
 
 pub struct Ppm;
 
@@ -15,7 +15,7 @@ impl Ppm {
     }
 }
 
-impl Encode<Rgb8> for Ppm {
+impl Encoder<Rgb8> for Ppm {
     fn encode(&self, image: Image<Rgb8>) -> ImageBuffer {
         let mut data: Vec<u8> = Vec::new();
 
@@ -35,7 +35,7 @@ impl Encode<Rgb8> for Ppm {
     }
 }
 
-impl Decode<Rgb8> for Ppm {
+impl Decoder<Rgb8> for Ppm {
     fn decode(&self, buffer: ImageBuffer) -> Image<Rgb8> {
         let mut cursor = Cursor::new(buffer.data);
         

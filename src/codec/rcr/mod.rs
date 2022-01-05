@@ -1,13 +1,12 @@
 #![allow(unused)]
 
-use std::os::unix::prelude::MetadataExt;
-use std::usize;
+use std::f32::consts::PI;
 
-use crate::codec::Encode;
+use crate::codec::Encoder;
 use crate::color::Lab8;
-use crate::image::{self, Image, ImageBuffer};
+use crate::image::{Image, ImageBuffer};
 
-use super::Decode;
+use super::Decoder;
 
 const DEFAULT_LUMA_TABLE: [u8; 64] =  [
     6,   11,  10,  16,  24,  40,  51,  61,
@@ -34,6 +33,7 @@ const DEFAULT_CHROMA_TABLE: [u8; 64] =  [
 /// Raw cosine representation
 pub struct Rcr {
     quality: u8,
+    unit_size: usize,
     luma_table: [u8; 64],
     chroma_table: [u8; 64],
 }
@@ -42,30 +42,86 @@ impl Rcr {
     pub fn new(quality :u8) -> Self {
         Self {
             quality: quality.clamp(0, 100),
+            unit_size: 8,
             chroma_table: DEFAULT_CHROMA_TABLE,
             luma_table: DEFAULT_LUMA_TABLE,
         }
     }
 
-    pub fn with_tables(quality :u8, chroma_table: [u8; 64], luma_table: [u8; 64]) -> Self {
-        Self {
-            quality: quality.clamp(0, 100),
-            chroma_table,
-            luma_table,
+    fn dct(&self, u: Unit<Lab8>) -> Vec<u8> {
+        assert!(u.size == u.size);
+        let mut buffer = Vec::new();
+        let size = self.unit_size;
+
+        for y in 0..size {
+            for x in 0..size {
+                let mut l_sum = 0.0;
+                let mut a_sum = 0.0;
+                let mut b_sum = 0.0;
+
+                let p = if x == 0 { 1.0 / (2.0_f32).sqrt() } else { 1.0 };
+                let q = if x == 0 { 1.0 / (2.0_f32).sqrt() } else { 1.0 };
+
+                for i in 0..size {
+                    for j in 0..size {
+                        let mul = 
+                            ((PI / size as f32) * (i as f32 + 0.5) * x as f32).cos() * 
+                            ((PI / size as f32) * (j as f32 + 0.5) * y as f32).cos();
+
+                        l_sum += u.at(i, j).l as f32 * mul;
+                        a_sum += (u.at(i, j).a as f32 - 128.0) * mul;
+                        b_sum += (u.at(i, j).b as f32 - 128.0) * mul;
+                    }
+                }
+
+                // let luma_q = (self.luma_table[y * size + x]) as f32 * (1.0 / self.quality as f32);
+                // let chroma_q = (self.chroma_table[y * size + x]) as f32 * (1.0 / self.quality as f32);
+
+                let luma_q = 1.0;
+                let chroma_q = 1.0;
+
+                buffer.push((p * q * l_sum * 0.25 / luma_q).round() as u8);
+                buffer.push((p * q * a_sum * 0.25 / chroma_q).round() as u8);
+                buffer.push((p * q * b_sum * 0.25 / chroma_q).round() as u8);
+            }
         }
+
+        buffer
+    }
+
+    // fn inverse_dct(&self, buffer: Vec<u8>) -> Unit<Lab8> {
+    //     let mut data = Vec::new();
+    //     let size = self.unit_size;
+        
+    //     for y in 0..size {
+    //         for x in 0..size {
+
+    //             for i in 0..size {
+    //                 for j in 0..size {
+    //                 }
+    //             }
+    //         }
+    //     }
+
+    //     return Unit::new(data, size);
+    // }
+}
+
+impl Encoder<Lab8> for Rcr {
+    fn encode(&self, image: Image<Lab8>) -> ImageBuffer {
+        let data = image
+            .into_unit_iter(8)
+            .map(|u| self.dct(u))
+            .map(Vec::into_iter)
+            .flatten()
+            .collect();
+
+        ImageBuffer { data }
     }
 }
 
-impl<T> Encode<T> for Rcr where T : Clone + core::fmt::Debug {
-    fn encode(&self, image: crate::image::Image<T>) -> ImageBuffer {
-        ImageBuffer {
-            data: Vec::new()
-        }
-    }
-}
-
-impl<T> Decode<T> for Rcr {
-    fn decode(&self, buffer: ImageBuffer) -> Image<T> {
+impl Decoder<Lab8> for Rcr {
+    fn decode(&self, buffer: ImageBuffer) -> Image<Lab8> {
         Image::new(0, 0, Vec::new())
     }
 }

@@ -3,7 +3,7 @@
 use std::{fs, io};
 
 use crate::color::{Rgb8, Lab8};
-use crate::codec::{Encode, Decode};
+use crate::codec::{Encoder, Decoder};
 
 #[derive(Debug, Clone)]
 pub struct Image<T> {
@@ -43,7 +43,7 @@ impl<T> Image<T> {
         }
     }
 
-    pub fn encode(self, encoder: & dyn Encode<T>) -> ImageBuffer {
+    pub fn encode(self, encoder: & dyn Encoder<T>) -> ImageBuffer {
         encoder.encode(self)
     }
 
@@ -64,7 +64,7 @@ impl ImageBuffer {
         fs::write(path, self.data)
     }
 
-    pub fn decode<T>(self, decoder: & dyn Decode<T>) -> Image<T> {
+    pub fn decode<T>(self, decoder: & dyn Decoder<T>) -> Image<T> {
         decoder.decode(self)
     }
 }

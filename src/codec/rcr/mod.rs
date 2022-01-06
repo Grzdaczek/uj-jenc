@@ -47,76 +47,100 @@ impl Rcr {
             luma_table: DEFAULT_LUMA_TABLE,
         }
     }
+}
 
-    fn dct(&self, u: Unit<Lab8>) -> Vec<u8> {
-        assert!(u.size == u.size);
-        let mut buffer = Vec::new();
-        let size = self.unit_size;
+// fn dct_1d_8(spacial: &[u8; 8], frequency: &mut [i16; 8]) {
+//     for k in 0..8 {
+//         frequency[k] = spacial
+//             .iter()
+//             .enumerate()
+//             .map(|(n, &xn)| xn as f32 * ( PI / 8.0 * k as f32 * (0.5 + n as f32)).cos() )
+//             .sum::<f32>() as i16;
+//         ;
+//     }
+// }
 
-        for y in 0..size {
-            for x in 0..size {
-                let mut l_sum = 0.0;
-                let mut a_sum = 0.0;
-                let mut b_sum = 0.0;
-
-                let p = if x == 0 { 1.0 / (2.0_f32).sqrt() } else { 1.0 };
-                let q = if x == 0 { 1.0 / (2.0_f32).sqrt() } else { 1.0 };
-
-                for i in 0..size {
-                    for j in 0..size {
-                        let mul = 
-                            ((PI / size as f32) * (i as f32 + 0.5) * x as f32).cos() * 
-                            ((PI / size as f32) * (j as f32 + 0.5) * y as f32).cos();
-
-                        l_sum += u.at(i, j).l as f32 * mul;
-                        a_sum += (u.at(i, j).a as f32 - 128.0) * mul;
-                        b_sum += (u.at(i, j).b as f32 - 128.0) * mul;
-                    }
-                }
-
-                // let luma_q = (self.luma_table[y * size + x]) as f32 * (1.0 / self.quality as f32);
-                // let chroma_q = (self.chroma_table[y * size + x]) as f32 * (1.0 / self.quality as f32);
-
-                let luma_q = 1.0;
-                let chroma_q = 1.0;
-
-                buffer.push((p * q * l_sum * 0.25 / luma_q).round() as u8);
-                buffer.push((p * q * a_sum * 0.25 / chroma_q).round() as u8);
-                buffer.push((p * q * b_sum * 0.25 / chroma_q).round() as u8);
+fn dct(spacial: &[[u8; 8]; 8], frequency: &mut [[i16; 8]; 8]) {
+    let mut buffer = [[0; 8]; 8];
+    
+    for y in 0..8 {
+        for k in 0..8 {
+            let mut sum = 0.0;
+            for n in 0..8 {
+                sum += spacial[y][n] as f32 * ( PI / 8.0 * k as f32 * (0.5 + n as f32)).cos()
+            }
+            buffer[y][k] = match k {
+                0 => (sum / (2.0 * 2_f32.sqrt())) as i16,
+                _ => (sum / 2.0) as i16,
             }
         }
-
-        buffer
     }
 
-    // fn inverse_dct(&self, buffer: Vec<u8>) -> Unit<Lab8> {
-    //     let mut data = Vec::new();
-    //     let size = self.unit_size;
-        
-    //     for y in 0..size {
-    //         for x in 0..size {
-
-    //             for i in 0..size {
-    //                 for j in 0..size {
-    //                 }
-    //             }
-    //         }
-    //     }
-
-    //     return Unit::new(data, size);
-    // }
+    for x in 0..8 {
+        for k in 0..8 {
+            let mut sum = 0.0;
+            for n in 0..8 {
+                sum += buffer[n][x] as f32 * ( PI / 8.0 * k as f32 * (0.5 + n as f32)).cos()
+            }
+            frequency[k][x] = match k {
+                0 => (sum / (2.0 * 2_f32.sqrt())) as i16,
+                _ => (sum / 2.0) as i16,
+            }
+        }
+    }
 }
 
 impl Encoder<Lab8> for Rcr {
     fn encode(&self, image: Image<Lab8>) -> ImageBuffer {
-        let data = image
-            .into_unit_iter(8)
-            .map(|u| self.dct(u))
-            .map(Vec::into_iter)
-            .flatten()
-            .collect();
+        let mut data = Vec::new();
 
-        ImageBuffer { data }
+        image
+            .into_unit_iter(8)
+            .for_each(|u| {
+                let mut l = [[0_u8; 8]; 8];
+                let mut a = [[0_u8; 8]; 8];
+                let mut b = [[0_u8; 8]; 8];
+                
+                for x in 0..8 {
+                    for y in 0..8 {
+                        let c = u.at(x, y);
+                        l[x][y] = c.l;
+                        a[x][y] = c.a;
+                        b[x][y] = c.b;
+                    }
+                }
+
+                let mut coeff = [[0; 8];8 ];
+                dct(&l, &mut coeff);
+                data.push(coeff);
+
+                let mut coeff = [[0; 8];8 ];
+                dct(&a, &mut coeff);
+                data.push(coeff);
+
+                let mut coeff = [[0; 8];8 ];
+                dct(&b, &mut coeff);
+                data.push(coeff);
+            });
+
+        println!("{:?}", data);
+            
+        // let x = [
+        //     [16, 11, 10, 16, 24, 40, 51, 61],
+        //     [12, 12, 14, 19, 26, 58, 60, 55],
+        //     [14, 13, 16, 24, 40, 57, 69, 56],
+        //     [14, 17, 22, 29, 51, 87, 80, 62],
+        //     [18, 22, 37, 56, 68, 109, 103, 77],
+        //     [24, 35, 55, 64, 81, 104, 113, 92],
+        //     [49, 64, 78, 87, 103, 121, 120, 101],
+        //     [72, 92, 95, 98, 112, 100, 103, 99]
+        // ];
+
+        // let mut y = [[0; 8];8 ];
+        // dct(&x, &mut y);
+        // y.iter().for_each(|yy| println!("{:?}", yy));
+
+        ImageBuffer { data: Vec::new() }
     }
 }
 
@@ -185,8 +209,8 @@ impl<'a, T> Iterator for ImageUnitIterator<'a, T> where T : Clone {
 }
 
 pub struct Unit<T> {
-    data: Vec<T>,
-    size: usize,
+    pub data: Vec<T>,
+    pub size: usize,
 }
 
 impl<T> Unit<T> {

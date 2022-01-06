@@ -183,13 +183,12 @@ impl<T> Unit<T> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::dct;
 
     #[test]
-    fn dct_is_equal_to_its_inverese() {
+    fn dct_inverese_equality() {
         let spacial = [
             [16.0, 11.0, 10.0, 16.0,  24.0,  40.0,  51.0,  61.0],
             [12.0, 12.0, 14.0, 19.0,  26.0,  58.0,  60.0,  55.0],
@@ -213,6 +212,4 @@ mod tests {
             }
         }
     }    
-
-
 }

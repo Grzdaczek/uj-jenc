@@ -1,7 +1,5 @@
 #![allow(unused)]
 
-use std::f32::consts::PI;
-
 use crate::codec::Encoder;
 use crate::color::Lab8;
 use crate::image::{Image, ImageBuffer};
@@ -30,6 +28,53 @@ const DEFAULT_CHROMA_TABLE: [u8; 64] =  [
     99,  99,  99,  99,  99,  99,  99,  99,
 ];
 
+type Dct8Buffer = [[f32; 8]; 8];
+
+lazy_static! {
+    /// inverse of sqrt(2)
+    static ref DCT_SQRT2_INV: f32 = {
+        1_f32 / 2_f32.sqrt()
+    };
+    
+    /// DCT cosine multipliers
+    static ref DCT_COS_MUL: Dct8Buffer = {
+        let mut mul: Dct8Buffer = [[0_f32; 8]; 8];
+        for k in 0..8 {
+            for n in 0..8 {
+                let kf = k as f32;
+                let nf = n as f32;
+                mul[k][n] = (
+                    (std::f32::consts::PI / 8.0)
+                    * (0.5 + kf)
+                    * (0.5 + nf)
+                ).cos() * 0.5;
+            }
+        }
+
+        mul
+    };
+}
+
+fn dct(in_buf: &Dct8Buffer, out_buf: &mut Dct8Buffer) {
+    let mut mid_buf: Dct8Buffer = [[0.0; 8]; 8];
+    
+    for k in 0..8 {
+        for y in 0..8 {
+            mid_buf[y][k] = (0..8)
+                .map(|n| in_buf[y][n] * DCT_COS_MUL[k][n])
+                .sum();
+        }
+    }
+
+    for k in 0..8 {
+        for x in 0..8 {
+            out_buf[k][x] = (0..8)
+                .map(|n| mid_buf[n][x] * DCT_COS_MUL[k][n])
+                .sum();
+        }
+    }
+}
+
 /// Raw cosine representation
 pub struct Rcr {
     quality: u8,
@@ -49,97 +94,8 @@ impl Rcr {
     }
 }
 
-// fn dct_1d_8(spacial: &[u8; 8], frequency: &mut [i16; 8]) {
-//     for k in 0..8 {
-//         frequency[k] = spacial
-//             .iter()
-//             .enumerate()
-//             .map(|(n, &xn)| xn as f32 * ( PI / 8.0 * k as f32 * (0.5 + n as f32)).cos() )
-//             .sum::<f32>() as i16;
-//         ;
-//     }
-// }
-
-fn dct(spacial: &[[u8; 8]; 8], frequency: &mut [[i16; 8]; 8]) {
-    let mut buffer = [[0; 8]; 8];
-    
-    for y in 0..8 {
-        for k in 0..8 {
-            let mut sum = 0.0;
-            for n in 0..8 {
-                sum += spacial[y][n] as f32 * ( PI / 8.0 * k as f32 * (0.5 + n as f32)).cos()
-            }
-            buffer[y][k] = match k {
-                0 => (sum / (2.0 * 2_f32.sqrt())) as i16,
-                _ => (sum / 2.0) as i16,
-            }
-        }
-    }
-
-    for x in 0..8 {
-        for k in 0..8 {
-            let mut sum = 0.0;
-            for n in 0..8 {
-                sum += buffer[n][x] as f32 * ( PI / 8.0 * k as f32 * (0.5 + n as f32)).cos()
-            }
-            frequency[k][x] = match k {
-                0 => (sum / (2.0 * 2_f32.sqrt())) as i16,
-                _ => (sum / 2.0) as i16,
-            }
-        }
-    }
-}
-
 impl Encoder<Lab8> for Rcr {
     fn encode(&self, image: Image<Lab8>) -> ImageBuffer {
-        let mut data = Vec::new();
-
-        image
-            .into_unit_iter(8)
-            .for_each(|u| {
-                let mut l = [[0_u8; 8]; 8];
-                let mut a = [[0_u8; 8]; 8];
-                let mut b = [[0_u8; 8]; 8];
-                
-                for x in 0..8 {
-                    for y in 0..8 {
-                        let c = u.at(x, y);
-                        l[x][y] = c.l;
-                        a[x][y] = c.a;
-                        b[x][y] = c.b;
-                    }
-                }
-
-                let mut coeff = [[0; 8];8 ];
-                dct(&l, &mut coeff);
-                data.push(coeff);
-
-                let mut coeff = [[0; 8];8 ];
-                dct(&a, &mut coeff);
-                data.push(coeff);
-
-                let mut coeff = [[0; 8];8 ];
-                dct(&b, &mut coeff);
-                data.push(coeff);
-            });
-
-        println!("{:?}", data);
-            
-        // let x = [
-        //     [16, 11, 10, 16, 24, 40, 51, 61],
-        //     [12, 12, 14, 19, 26, 58, 60, 55],
-        //     [14, 13, 16, 24, 40, 57, 69, 56],
-        //     [14, 17, 22, 29, 51, 87, 80, 62],
-        //     [18, 22, 37, 56, 68, 109, 103, 77],
-        //     [24, 35, 55, 64, 81, 104, 113, 92],
-        //     [49, 64, 78, 87, 103, 121, 120, 101],
-        //     [72, 92, 95, 98, 112, 100, 103, 99]
-        // ];
-
-        // let mut y = [[0; 8];8 ];
-        // dct(&x, &mut y);
-        // y.iter().for_each(|yy| println!("{:?}", yy));
-
         ImageBuffer { data: Vec::new() }
     }
 }
@@ -225,4 +181,38 @@ impl<T> Unit<T> {
     fn at(&self, x: usize, y: usize) -> &T {
         &self.data[self.size * y + x]
     }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::dct;
+
+    #[test]
+    fn dct_is_equal_to_its_inverese() {
+        let spacial = [
+            [16.0, 11.0, 10.0, 16.0,  24.0,  40.0,  51.0,  61.0],
+            [12.0, 12.0, 14.0, 19.0,  26.0,  58.0,  60.0,  55.0],
+            [14.0, 13.0, 16.0, 24.0,  40.0,  57.0,  69.0,  56.0],
+            [14.0, 17.0, 22.0, 29.0,  51.0,  87.0,  80.0,  62.0],
+            [18.0, 22.0, 37.0, 56.0,  68.0, 109.0, 103.0,  77.0],
+            [24.0, 35.0, 55.0, 64.0,  81.0, 104.0, 113.0,  92.0],
+            [49.0, 64.0, 78.0, 87.0, 103.0, 121.0, 120.0, 101.0],
+            [72.0, 92.0, 95.0, 98.0, 112.0, 100.0, 103.0,  99.0]
+        ];
+
+        let mut frequency = [[0.0; 8];8 ];
+        dct(&spacial, &mut frequency);
+
+        let mut new_spacial = [[0.0; 8];8 ];
+        dct(&frequency, &mut new_spacial);
+
+        for x in 0..8 {
+            for y in 0..8 {
+                assert_eq!(spacial[x][y].round(), new_spacial[x][y].round());
+            }
+        }
+    }    
+
+
 }

@@ -6,7 +6,7 @@ use uj_jenc::codec::*;
 use uj_jenc::color::*;
 use uj_jenc::image::*;
 fn main() {
-    let rcr_codec = rcr::Rcr::new(50);
+    let rcr_codec = rcr::Rcr::new(100.0);
     let ppm_codec = ppm::Ppm::new();
 
     let img: Image<Lab8> = ImageBuffer::read("./examples/in_image.ppm")

@@ -49,13 +49,11 @@ pub const DEFAULT_CHROMA_TABLE: [f32; 64] =  [
 ];
 
 pub fn dct(in_buf: &[f32; 64], out_buf: &mut [f32; 64]) {
-    let mut mid_buf = [0.0; 64];
-
     for i in 0..64 {
         out_buf[i] = in_buf[i];
     }
 
-    return;
+    // let mut mid_buf = [0.0; 64];
 
     // for k in 0..8 {
     //     for y in 0..8 {
@@ -76,13 +74,11 @@ pub fn dct(in_buf: &[f32; 64], out_buf: &mut [f32; 64]) {
 
 // TODO: actually implement inv dct, not just copy regular dct
 pub fn inv_dct(in_buf: &[f32; 64], out_buf: &mut [f32; 64]) {
-    let mut mid_buf = [0.0; 64];
-
     for i in 0..64 {
         out_buf[i] = in_buf[i];
     }
-
-    return;
+    
+    // let mut mid_buf = [0.0; 64];
 
     // for k in 0..8 {
     //     for y in 0..8 {
@@ -102,16 +98,22 @@ pub fn inv_dct(in_buf: &[f32; 64], out_buf: &mut [f32; 64]) {
 }
 
 // TODO: implement quality setting
-pub fn quant(in_buf: &[f32; 64], out_buf: &mut [u8; 64], table: &[f32; 64], quality: u8) {
+pub fn quant(in_buf: &[f32; 64], out_buf: &mut [u8; 64], table: &[f32; 64], quality: f32) {
     for i in 0..64 {
-        out_buf[i] = (in_buf[i] / 8.0) as u8;
+        // let mul = (table[i] / quality).min(1.0);
+        let mul = 1.0;
+        let x: i8 = (in_buf[i] / mul) as i8;
+        out_buf[i] = x.to_be_bytes()[0];
     }
 }
 
 // TODO: implement quality setting
-pub fn inv_quant(in_buf: &[u8; 64], out_buf: &mut [f32; 64], table: &[f32; 64], quality: u8) {
+pub fn inv_quant(in_buf: &[u8; 64], out_buf: &mut [f32; 64], table: &[f32; 64], quality: f32) {
     for i in 0..64 {
-        out_buf[i] = in_buf[i] as f32 * 8.0;
+        // let mul = (table[i] / quality).min(1.0);
+        let mul = 1.0;
+        let x: i8 = i8::from_be_bytes([in_buf[i]]);
+        out_buf[i] = (x as f32) * mul
     }
 }
 

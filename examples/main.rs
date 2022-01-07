@@ -15,6 +15,9 @@ fn main() {
         .into();
 
     let buf = img.encode(&rcr_codec);
+
+    buf.write("./examples/tmp");
+
     let img: Image<Rgb8> = buf.decode(&rcr_codec).into();
 
     img.encode(&ppm_codec)

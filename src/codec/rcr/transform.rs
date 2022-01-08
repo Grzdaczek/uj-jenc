@@ -1,10 +1,6 @@
 use std::f32::consts::PI;
 
 lazy_static! {
-    static ref INV_SQRT2_MUL: f32 = {
-        1.0 / 2_f32.sqrt() / 2.0
-    };
-
     static ref DCT_COS_MUL: [f32; 64] = {
         let mut mul: [f32; 64] = [0_f32; 64];
         for k in 0..8 {
@@ -13,10 +9,10 @@ lazy_static! {
                 let nf = n as f32;
                 mul[k + 8*n] = (
                     (std::f32::consts::PI / 8.0)
-                    * (0.5 + kf)
+                    * (0.0 + kf)
                     * (0.5 + nf)
                 ).cos() * match k {
-                    // 0 => 0.5 * (1.0 / 2_f32.sqrt()),
+                    0 => 0.5 * (1.0 / 2_f32.sqrt()),
                     _ => 0.5,
                 };
             }
@@ -49,59 +45,49 @@ pub const DEFAULT_CHROMA_TABLE: [f32; 64] =  [
 ];
 
 pub fn dct(in_buf: &[f32; 64], out_buf: &mut [f32; 64]) {
-    for i in 0..64 {
-        out_buf[i] = in_buf[i];
+    let mut mid_buf = [0.0; 64];
+
+    for k in 0..8 {
+        for y in 0..8 {
+            mid_buf[y + 8*k] = (0..8)
+                .map(|n| in_buf[y + 8*n] * DCT_COS_MUL[k + 8*n])
+                .sum();
+        }
     }
 
-    // let mut mid_buf = [0.0; 64];
-
-    // for k in 0..8 {
-    //     for y in 0..8 {
-    //         mid_buf[y + 8*k] = (0..8)
-    //             .map(|n| in_buf[y + 8*n] * DCT_COS_MUL[k + 8*n])
-    //             .sum();
-    //     }
-    // }
-
-    // for k in 0..8 {
-    //     for x in 0..8 {
-    //         out_buf[k + 8*x] = (0..8)
-    //             .map(|n| mid_buf[n + 8*x] * DCT_COS_MUL[k + 8*n])
-    //             .sum();
-    //     }
-    // }
+    for k in 0..8 {
+        for x in 0..8 {
+            out_buf[k + 8*x] = (0..8)
+                .map(|n| mid_buf[n + 8*x] * DCT_COS_MUL[k + 8*n])
+                .sum();
+        }
+    }
 }
 
-// TODO: actually implement inv dct, not just copy regular dct
 pub fn inv_dct(in_buf: &[f32; 64], out_buf: &mut [f32; 64]) {
-    for i in 0..64 {
-        out_buf[i] = in_buf[i];
+    let mut mid_buf = [0.0; 64];
+
+    for k in 0..8 {
+        for y in 0..8 {
+            mid_buf[y + 8*k] = (0..8)
+                .map(|n| in_buf[y + 8*n] * DCT_COS_MUL[n + 8*k])
+                .sum();
+        }
     }
-    
-    // let mut mid_buf = [0.0; 64];
 
-    // for k in 0..8 {
-    //     for y in 0..8 {
-    //         mid_buf[y + 8*k] = (0..8)
-    //             .map(|n| in_buf[y + 8*n] * DCT_COS_MUL[k + 8*n])
-    //             .sum();
-    //     }
-    // }
-
-    // for k in 0..8 {
-    //     for x in 0..8 {
-    //         out_buf[k + 8*x] = (0..8)
-    //             .map(|n| mid_buf[n + 8*x] * DCT_COS_MUL[k + 8*n])
-    //             .sum();
-    //     }
-    // }
+    for k in 0..8 {
+        for x in 0..8 {
+            out_buf[k + 8*x] = (0..8)
+                .map(|n| mid_buf[n + 8*x] * DCT_COS_MUL[n + 8*k])
+                .sum();
+        }
+    }
 }
 
 // TODO: implement quality setting
 pub fn quant(in_buf: &[f32; 64], out_buf: &mut [u8; 64], table: &[f32; 64], quality: f32) {
     for i in 0..64 {
-        // let mul = (table[i] / quality).min(1.0);
-        let mul = 1.0;
+        let mul = (table[i] / quality).max(8.0);
         let x: i8 = (in_buf[i] / mul) as i8;
         out_buf[i] = x.to_be_bytes()[0];
     }
@@ -110,8 +96,7 @@ pub fn quant(in_buf: &[f32; 64], out_buf: &mut [u8; 64], table: &[f32; 64], qual
 // TODO: implement quality setting
 pub fn inv_quant(in_buf: &[u8; 64], out_buf: &mut [f32; 64], table: &[f32; 64], quality: f32) {
     for i in 0..64 {
-        // let mul = (table[i] / quality).min(1.0);
-        let mul = 1.0;
+        let mul = (table[i] / quality).max(8.0);
         let x: i8 = i8::from_be_bytes([in_buf[i]]);
         out_buf[i] = (x as f32) * mul
     }
@@ -138,7 +123,7 @@ mod tests {
         dct(&spacial, &mut frequency);
 
         let mut new_spacial = [0.0; 64];
-        dct(&frequency, &mut new_spacial);
+        inv_dct(&frequency, &mut new_spacial);
 
         for i in 0..64 {
             if (i % 8 == 0) { println!(); }
@@ -150,5 +135,7 @@ mod tests {
             .iter()
             .zip(new_spacial.iter())
             .for_each(|(a, b)| assert_eq!(a.round(), b.round()));
+
+        panic!();
     }
 }

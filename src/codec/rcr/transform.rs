@@ -1,5 +1,3 @@
-use std::f32::consts::PI;
-
 lazy_static! {
     static ref DCT_COS_MUL: [f32; 64] = {
         let mut mul: [f32; 64] = [0_f32; 64];
@@ -21,28 +19,6 @@ lazy_static! {
         mul
     };
 }
-
-pub const DEFAULT_LUMA_TABLE: [f32; 64] =  [
-     6.0,  11.0,  10.0,  16.0,  24.0,  40.0,  51.0,  61.0,
-    12.0,  12.0,  14.0,  19.0,  26.0,  58.0,  60.0,  55.0,
-    14.0,  13.0,  16.0,  24.0,  40.0,  57.0,  69.0,  56.0,
-    14.0,  17.0,  22.0,  29.0,  51.0,  87.0,  80.0,  62.0,
-    18.0,  22.0,  37.0,  56.0,  68.0, 109.0, 103.0,  77.0,
-    24.0,  35.0,  55.0,  64.0,  81.0, 104.0, 113.0,  92.0,
-    49.0,  64.0,  78.0,  87.0, 103.0, 121.0, 120.0, 101.0,
-    72.0,  92.0,  95.0,  98.0, 112.0, 100.0, 103.0,   9.0,
-];
-
-pub const DEFAULT_CHROMA_TABLE: [f32; 64] =  [
-    17.0,  18.0,  24.0,  47.0,  99.0,  99.0,  99.0,  99.0,
-    18.0,  21.0,  26.0,  66.0,  99.0,  99.0,  99.0,  99.0,
-    24.0,  26.0,  56.0,  99.0,  99.0,  99.0,  99.0,  99.0,
-    47.0,  66.0,  99.0,  99.0,  99.0,  99.0,  99.0,  99.0,
-    99.0,  99.0,  99.0,  99.0,  99.0,  99.0,  99.0,  99.0,
-    99.0,  99.0,  99.0,  99.0,  99.0,  99.0,  99.0,  99.0,
-    99.0,  99.0,  99.0,  99.0,  99.0,  99.0,  99.0,  99.0,
-    99.0,  99.0,  99.0,  99.0,  99.0,  99.0,  99.0,  99.0,
-];
 
 pub fn dct(in_buf: &[f32; 64], out_buf: &mut [f32; 64]) {
     let mut mid_buf = [0.0; 64];
@@ -84,21 +60,17 @@ pub fn inv_dct(in_buf: &[f32; 64], out_buf: &mut [f32; 64]) {
     }
 }
 
-// TODO: implement quality setting
-pub fn quant(in_buf: &[f32; 64], out_buf: &mut [u8; 64], table: &[f32; 64], quality: f32) {
+pub fn quant(in_buf: &[f32; 64], out_buf: &mut [u8; 64], table: &[i8; 64]) {
     for i in 0..64 {
-        let mul = (table[i] / quality).max(8.0);
-        let x: i8 = (in_buf[i] / mul) as i8;
+        let x = (in_buf[i] / table[i] as f32) as i8;
         out_buf[i] = x.to_be_bytes()[0];
     }
 }
 
-// TODO: implement quality setting
-pub fn inv_quant(in_buf: &[u8; 64], out_buf: &mut [f32; 64], table: &[f32; 64], quality: f32) {
+pub fn inv_quant(in_buf: &[u8; 64], out_buf: &mut [f32; 64], table: &[i8; 64]) {
     for i in 0..64 {
-        let mul = (table[i] / quality).max(8.0);
-        let x: i8 = i8::from_be_bytes([in_buf[i]]);
-        out_buf[i] = (x as f32) * mul
+        let x = i8::from_be_bytes([in_buf[i]]);
+        out_buf[i] = x as f32 * table[i] as f32;
     }
 }
 

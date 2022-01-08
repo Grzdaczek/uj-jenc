@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Rgb8 {
     pub r: u8,

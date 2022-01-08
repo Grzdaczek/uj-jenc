@@ -16,11 +16,11 @@ fn main() {
     let mut rcr_data = Vec::new();
     let mut ppm_data = Vec::new();
 
-    let img: Image<Lab8> = ppm::decode(&mut &file[..]).into();
-    rcr::encode(&mut rcr_data, rcr::Settings::default(), &img);
+    let img = ppm::decode(&mut &file[..]);
+    rcr::encode(&mut rcr_data, rcr::Settings::quality(1), &img.into());
 
-    let img: Image<Rgb8> = rcr::decode(&mut &rcr_data[..], rcr::Settings::default()).into();
-    ppm::encode(&mut ppm_data, img);
+    let img = rcr::decode(&mut &rcr_data[..], rcr::Settings::quality(1));
+    ppm::encode(&mut ppm_data, &img.into());
 
     fs::write("./examples/out_image.ppm", ppm_data).unwrap();
 }

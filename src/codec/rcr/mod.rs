@@ -1,11 +1,11 @@
-#![allow(dead_code)]
-
 use std::io::BufReader;
 use std::io::Read;
 use std::io::Write;
 
 use crate::color::Lab8;
 use crate::image::Image;
+
+use transform::*;
 
 mod transform;
 
@@ -37,15 +37,19 @@ pub struct Settings {
 }
 
 impl Settings {
-    fn tabels(luma_table: [i8; 64], chroma_table: [i8; 64]) -> Self {
+    pub fn tabels(luma_table: [i8; 64], chroma_table: [i8; 64]) -> Self {
         Self { luma_table, chroma_table }
     }
 
     // TODO: implement quaity setting
-    fn quality(_quality: i8) -> Self {
+    pub fn quality(_quality: i8) -> Self {
+        let q = |x: i8| {
+            1
+        };
+
         Self {
-            luma_table: DEFAULT_LUMA_TABLE,
-            chroma_table: DEFAULT_CHROMA_TABLE,
+            luma_table: DEFAULT_LUMA_TABLE.map(q),
+            chroma_table: DEFAULT_CHROMA_TABLE.map(q),
         }
     }
 }
@@ -98,13 +102,13 @@ where T: Write
                 }
             }
 
-            transform::dct(&l_spacial, &mut l_frequency);
-            transform::dct(&a_spacial, &mut a_frequency);
-            transform::dct(&b_spacial, &mut b_frequency);
+            dct(&l_spacial, &mut l_frequency);
+            dct(&a_spacial, &mut a_frequency);
+            dct(&b_spacial, &mut b_frequency);
 
-            transform::quant(&l_frequency, &mut l_raw, &settings.luma_table);
-            transform::quant(&a_frequency, &mut a_raw, &settings.chroma_table);
-            transform::quant(&b_frequency, &mut b_raw, &settings.chroma_table);
+            quant(&l_frequency, &mut l_raw, &settings.luma_table);
+            quant(&a_frequency, &mut a_raw, &settings.chroma_table);
+            quant(&b_frequency, &mut b_raw, &settings.chroma_table);
 
             output.write(&l_raw).unwrap();
             output.write(&a_raw).unwrap();
@@ -151,13 +155,13 @@ where T: Read + AsRef<[u8]>
             input.read_exact(&mut a_raw).unwrap();
             input.read_exact(&mut b_raw).unwrap();
 
-            transform::inv_quant(&l_raw, &mut l_frequency, &settings.luma_table);
-            transform::inv_quant(&a_raw, &mut a_frequency, &settings.chroma_table);
-            transform::inv_quant(&b_raw, &mut b_frequency, &settings.chroma_table);
+            inv_quant(&l_raw, &mut l_frequency, &settings.luma_table);
+            inv_quant(&a_raw, &mut a_frequency, &settings.chroma_table);
+            inv_quant(&b_raw, &mut b_frequency, &settings.chroma_table);
 
-            transform::inv_dct(&l_frequency, &mut l_spacial);
-            transform::inv_dct(&a_frequency, &mut a_spacial);
-            transform::inv_dct(&b_frequency, &mut b_spacial);
+            inv_dct(&l_frequency, &mut l_spacial);
+            inv_dct(&a_frequency, &mut a_spacial);
+            inv_dct(&b_frequency, &mut b_spacial);
 
             for j in 0..8 {
                 for i in 0..8 {

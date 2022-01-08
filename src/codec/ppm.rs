@@ -14,8 +14,7 @@ impl Ppm {
     }
 }
 
-
-pub fn encode<T>(output: &mut T, image: Image<Rgb8>)
+pub fn encode<T>(output: &mut T, image: &Image<Rgb8>)
 where T: Write
 {
     let header = format!("P6\n{:?} {}\n255\n", image.width(), image.height());

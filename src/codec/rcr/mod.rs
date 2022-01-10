@@ -8,28 +8,7 @@ use crate::image::Image;
 use transform::*;
 
 pub mod transform;
-
-pub const DEFAULT_LUMA_TABLE: [i8; 64] =  [
-    16,  11,  10,  16,  24,  40,  51,  61,
-    12,  12,  14,  19,  26,  58,  60,  55,
-    14,  13,  16,  24,  40,  57,  69,  56,
-    14,  17,  22,  29,  51,  87,  80,  62,
-    18,  22,  37,  56,  68, 109, 103,  77,
-    24,  35,  55,  64,  81, 104, 113,  92,
-    49,  64,  78,  87, 103, 121, 120, 101,
-    72,  92,  95,  98, 112, 100, 103,  99,
-];
-
-pub const DEFAULT_CHROMA_TABLE: [i8; 64] =  [
-    17,  18,  24,  47,  99,  99,  99,  99,
-    18,  21,  26,  66,  99,  99,  99,  99,
-    24,  26,  56,  99,  99,  99,  99,  99,
-    47,  66,  99,  99,  99,  99,  99,  99,
-    99,  99,  99,  99,  99,  99,  99,  99,
-    99,  99,  99,  99,  99,  99,  99,  99,
-    99,  99,  99,  99,  99,  99,  99,  99,
-    99,  99,  99,  99,  99,  99,  99,  99,
-];
+pub mod tables;
 
 pub struct Settings {
     luma_table: [i8; 64],
@@ -37,30 +16,30 @@ pub struct Settings {
 }
 
 impl Settings {
-    pub fn tabels(luma_table: [i8; 64], chroma_table: [i8; 64]) -> Self {
-        Self { luma_table, chroma_table }
+    pub fn new() -> Self {
+        Self::quality(5)
     }
 
-    pub fn quality(quality: i8) -> Self {
-        assert!(quality >=1 && quality <= 100);
+    pub fn tabels(luma_table: [i8; 64], chroma_table: [i8; 64]) -> Self {
+        Self {
+            luma_table,
+            chroma_table
+        }
+    }
 
-        let f = |x: i8| {
-            (x as i32 / quality as i32).clamp(8, 128) as i8
-        };
+    pub fn quality(quality: usize) -> Self {
+        let (luma_table, chroma_table) = tables::from_quality(quality);
 
         Self {
-            luma_table: DEFAULT_LUMA_TABLE.map(f),
-            chroma_table: DEFAULT_CHROMA_TABLE.map(f),
+            luma_table,
+            chroma_table
         }
     }
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Self {
-            luma_table: DEFAULT_LUMA_TABLE,
-            chroma_table: DEFAULT_CHROMA_TABLE,
-        }
+        Self::new()
     }
 }
 
@@ -78,6 +57,9 @@ where T: Write
 
     output.write(&(image.width() as u16).to_be_bytes()).unwrap();
     output.write(&(image.height() as u16).to_be_bytes()).unwrap();
+
+    output.write(&settings.luma_table.map(|x| x.to_be_bytes()[0])).unwrap();
+    output.write(&settings.chroma_table.map(|x| x.to_be_bytes()[0])).unwrap();
 
     for y in 0..h {
         for x in 0..w {
@@ -118,7 +100,7 @@ where T: Write
     }
 }
 
-pub fn decode<T>(input: &mut T, settings: Settings) -> Image<Lab8>
+pub fn decode<T>(input: &mut T) -> Image<Lab8>
 where T: Read + AsRef<[u8]>
 {
     let mut input = BufReader::new(input);
@@ -132,6 +114,14 @@ where T: Read + AsRef<[u8]>
     
     assert!(width % 8 == 0);
     assert!(height % 8 == 0);
+
+    let mut bytes = [0; 64];
+    input.read_exact(&mut bytes).unwrap();
+    let luma_table = bytes.map(|x| i8::from_be_bytes([x]));
+
+    let mut bytes = [0; 64];
+    input.read_exact(&mut bytes).unwrap();
+    let chroma_table = bytes.map(|x| i8::from_be_bytes([x]));
 
     let w = (width / 8) as usize;
     let h = (height / 8) as usize;
@@ -156,9 +146,9 @@ where T: Read + AsRef<[u8]>
             input.read_exact(&mut a_raw).unwrap();
             input.read_exact(&mut b_raw).unwrap();
 
-            inv_quant(&l_raw, &mut l_frequency, &settings.luma_table);
-            inv_quant(&a_raw, &mut a_frequency, &settings.chroma_table);
-            inv_quant(&b_raw, &mut b_frequency, &settings.chroma_table);
+            inv_quant(&l_raw, &mut l_frequency, &luma_table);
+            inv_quant(&a_raw, &mut a_frequency, &chroma_table);
+            inv_quant(&b_raw, &mut b_frequency, &chroma_table);
 
             inv_dct(&l_frequency, &mut l_spacial);
             inv_dct(&a_frequency, &mut a_spacial);

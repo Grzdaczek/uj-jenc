@@ -1,4 +1,9 @@
 /target
 Cargo.lock
+
+examples/tmp
+benches/tmp
+*.tmp
+
 perf.data*
 flamegraph.svg

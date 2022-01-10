@@ -7,17 +7,17 @@ use crate::image::Image;
 
 use transform::*;
 
-mod transform;
+pub mod transform;
 
 pub const DEFAULT_LUMA_TABLE: [i8; 64] =  [
-     6,  11,  10,  16,  24,  40,  51,  61,
+    16,  11,  10,  16,  24,  40,  51,  61,
     12,  12,  14,  19,  26,  58,  60,  55,
     14,  13,  16,  24,  40,  57,  69,  56,
     14,  17,  22,  29,  51,  87,  80,  62,
     18,  22,  37,  56,  68, 109, 103,  77,
     24,  35,  55,  64,  81, 104, 113,  92,
     49,  64,  78,  87, 103, 121, 120, 101,
-    72,  92,  95,  98, 112, 100, 103,   9,
+    72,  92,  95,  98, 112, 100, 103,  99,
 ];
 
 pub const DEFAULT_CHROMA_TABLE: [i8; 64] =  [
@@ -41,15 +41,16 @@ impl Settings {
         Self { luma_table, chroma_table }
     }
 
-    // TODO: implement quaity setting
-    pub fn quality(_quality: i8) -> Self {
-        let q = |x: i8| {
-            1
+    pub fn quality(quality: i8) -> Self {
+        assert!(quality >=1 && quality <= 100);
+
+        let f = |x: i8| {
+            (x as i32 / quality as i32).clamp(8, 128) as i8
         };
 
         Self {
-            luma_table: DEFAULT_LUMA_TABLE.map(q),
-            chroma_table: DEFAULT_CHROMA_TABLE.map(q),
+            luma_table: DEFAULT_LUMA_TABLE.map(f),
+            chroma_table: DEFAULT_CHROMA_TABLE.map(f),
         }
     }
 }

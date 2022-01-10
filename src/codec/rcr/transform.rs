@@ -62,7 +62,7 @@ pub fn inv_dct(in_buf: &[f32; 64], out_buf: &mut [f32; 64]) {
 
 pub fn quant(in_buf: &[f32; 64], out_buf: &mut [u8; 64], table: &[i8; 64]) {
     for i in 0..64 {
-        let x = (in_buf[i] / 8.0) as i8;
+        let x = (in_buf[i] / table[i] as f32) as i8;
         out_buf[i] = x.to_be_bytes()[0];
     }
 }
@@ -70,7 +70,7 @@ pub fn quant(in_buf: &[f32; 64], out_buf: &mut [u8; 64], table: &[i8; 64]) {
 pub fn inv_quant(in_buf: &[u8; 64], out_buf: &mut [f32; 64], table: &[i8; 64]) {
     for i in 0..64 {
         let x = i8::from_be_bytes([in_buf[i]]);
-        out_buf[i] = x as f32 * 8.0;
+        out_buf[i] = x as f32 * table[i] as f32;
     }
 }
 

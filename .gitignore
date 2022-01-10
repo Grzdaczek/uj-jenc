@@ -6,4 +6,4 @@ benches/tmp
 *.tmp
 
 perf.data*
-flamegraph.svg
+flamegraph*

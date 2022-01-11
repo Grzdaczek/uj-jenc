@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use uj_jenc::codec::rcr;
+use pixlib::codec::rcr;
 
 fn rcr_benchmark(c: &mut Criterion) {
     let s: [f32; 64] = [

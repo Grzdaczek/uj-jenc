@@ -1,5 +1,5 @@
 [package]
-name = "uj-jenc"
+name = "pixlib"
 version = "0.1.0"
 edition = "2021"
 

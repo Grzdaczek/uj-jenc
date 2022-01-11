@@ -35,7 +35,7 @@ impl Default for Settings {
     }
 }
 
-pub fn encode<T>(output: &mut T, settings: Settings, image: &Image<Lab8>) -> Result<()>
+pub fn encode<T>(mut output: T, settings: Settings, image: &Image<Lab8>) -> Result<()>
 where T: Write
 {
     assert!(image.width() % 8 == 0);
@@ -111,8 +111,8 @@ where T: Write
     Ok(())
 }
 
-pub fn decode<T>(input: &mut T) -> Result<Image<Lab8>>
-where T: Read + AsRef<[u8]>
+pub fn decode<T>(input: T) -> Result<Image<Lab8>>
+where T: Read
 {
     let mut input = BufReader::new(input);
     let mut bytes = [0; 2];
@@ -152,6 +152,7 @@ where T: Read + AsRef<[u8]>
             input.read_exact(&mut b_raw)?;
 
             let l_spacial = Unit::new(l_raw)
+                .inv_zigzag()
                 .convert(|x| i8::from_be_bytes([x]))
                 .convert(|x| x as i32)
                 .inv_quantize(luma_table)
@@ -161,6 +162,7 @@ where T: Read + AsRef<[u8]>
                 .unwrap();
 
             let a_spacial = Unit::new(a_raw)
+                .inv_zigzag()
                 .convert(|x| i8::from_be_bytes([x]))
                 .convert(|x| x as i32)
                 .inv_quantize(chroma_table)
@@ -170,6 +172,7 @@ where T: Read + AsRef<[u8]>
                 .unwrap();
 
             let b_spacial = Unit::new(b_raw)
+                .inv_zigzag()
                 .convert(|x| i8::from_be_bytes([x]))
                 .convert(|x| x as i32)
                 .inv_quantize(chroma_table)

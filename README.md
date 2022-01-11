@@ -1,10 +1,10 @@
 # Pixlib
 
-Projekt biblioteki pozwalającej na manipulowanie obrazami w formatach PPM i RCR, mający na celu naukę języka Rust oraz sposobów na stratną kompresję z wykożystarniem analizy częstotlowiściowej.
+Projekt biblioteki pozwalającej na manipulowanie obrazami w formatach PPM i RCR, mający na celu naukę języka Rust oraz sposobów na stratną kompresję z wykorzystaniem analizy częstotlowiściowej.
 
 ## Wspierane formaty obrazów
 
-Na potrzeby projektu został stworzony prosty format RCR *(raw cosine representation)*. Bazuje on na standardzie JPEG, ale znacząco upraszczający strukturę pliku. Pozwoliło to na skupieniu się nad założeniami kompresji. Biblioteka wspiera również format PPM, co daje możliwość podglądu efektów.
+Na potrzeby projektu został stworzony prosty format RCR *(raw cosine representation)*. Bazuje on na standardzie JPEG, ale upraszcza znacząco strukturę pliku, co pozwoliło na skupieniu się nad założeniami kompresji. Biblioteka wspiera również format PPM, co daje możliwość podglądu efektów.
 
 ## Przykład
 

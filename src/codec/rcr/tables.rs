@@ -1,7 +1,9 @@
-type Table = [i8; 64];
+use super::unit::*;
 
-pub fn from_quality(quality: usize) -> (Table, Table) {
-    match quality {
+type Table = [i32; 64];
+
+pub fn from_quality(quality: usize) -> (Unit<i32>, Unit<i32>) {
+    let (chroma, luma) = match quality {
         0 => (LUMA_Q0, CHROMA_Q0),
         1 => (LUMA_Q1, CHROMA_Q1),
         2 => (LUMA_Q2, CHROMA_Q2),
@@ -18,7 +20,9 @@ pub fn from_quality(quality: usize) -> (Table, Table) {
         // 11 => (LUMA_Q11, CHROMA_Q11),
         // 12 => (LUMA_Q12, CHROMA_Q12),
         _ => panic!("Table quality out of range")
-    }
+    };
+
+    (Unit::new(chroma), Unit::new(luma))
 }
 
 pub const LUMA_Q0: Table = [

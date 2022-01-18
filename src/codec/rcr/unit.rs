@@ -1,22 +1,22 @@
 use std::ops::{Div, Mul};
 
-const DCT_COS_MUL: [f32; 64] = [
+const COS_MUL_F: [f32; 64] = [
     /*
     lazy_static! {
-        static ref DCT_COS_MUL: [f32; 64] = {
+        static ref COS_MUL_F: [f32; 64] = {
             let mut mul: [f32; 64] = [0_f32; 64];
             for k in 0..8 {
                 for n in 0..8 {
                     let kf = k as f32;
                     let nf = n as f32;
-                    mul[k + 8*n] = (
-                        (std::f32::consts::PI / 8.0)
-                        * (0.0 + kf)
-                        * (0.5 + nf)
-                    ).cos() * match k {
+                    let cos = ((std::f32::consts::PI / 8.0) * (0.0 + kf)* (0.5 + nf)).cos();
+                    
+                    let correction = match k {
                         0 => 0.5 * (1.0 / 2_f32.sqrt()),
                         _ => 0.5,
                     };
+
+                    mul[k + 8*n] = cos * correction
                 }
             }
 
@@ -34,6 +34,44 @@ const DCT_COS_MUL: [f32; 64] = [
     0.353553, -0.415734,  0.191341,  0.097545, -0.353553,  0.490392, -0.461939,  0.277785,
     0.353553, -0.490392,  0.461939, -0.415734,  0.353553, -0.277785,  0.191341, -0.097545,
 ];
+
+const Q: i32 = 21; // 32 - <sign bit> - 10 (due to dct output range for u8)
+const DCT_MUL_I: [i32; 64] = [
+    /*
+    lazy_static! {
+        static ref DCT_MUL_I: [i32; 64] = {
+            let mut mul: [i32; 64] = [0; 64];
+            for k in 0..8 {
+                for n in 0..8 {
+                    let kf = k as f32;
+                    let nf = n as f32;
+                    let cos = ((std::f32::consts::PI / 8.0) * (0.0 + kf)* (0.5 + nf)).cos();
+                    
+                    let correction = match k {
+                        0 => 0.5 * (1.0 / 2_f32.sqrt()),
+                        _ => 0.5,
+                    };
+
+                    mul[k + 8*n] = (cos * correction * 2f32.powi(Q)) as i32
+                }
+            }
+
+            mul
+        };
+    }
+    */
+
+    741455,  1028427,  968757,   871859,  741455,   582557,  401272,   204567,
+    741455,   871859,  401272,  -204567, -741455, -1028427, -968757,  -582557,
+    741455,   582557, -401272, -1028427, -741455,   204567,  968757,   871859,
+    741455,   204567, -968757,  -582557,  741455,   871859, -401273, -1028427, 
+    741455,  -204567, -968757,   582557,  741455,  -871859, -401273,  1028427, 
+    741455,  -582557, -401272,  1028427, -741455,  -204567,  968757,  -871859, 
+    741455,  -871859,  401272,   204567, -741455,  1028427, -968757,   582557, 
+    741455, -1028427,  968757,  -871859,  741455,  -582557,  401273,  -204567,
+];
+
+
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Unit<T>([T; 64]);
@@ -113,7 +151,7 @@ impl Unit<f32> {
         for k in 0..8 {
             for y in 0..8 {
                 mid_buf[y + 8*k] = (0..8)
-                    .map(|n| in_buf[y + 8*n] * DCT_COS_MUL[k + 8*n])
+                    .map(|n| in_buf[y + 8*n] * COS_MUL_F[k + 8*n])
                     .sum();
             }
         }
@@ -121,7 +159,7 @@ impl Unit<f32> {
         for k in 0..8 {
             for x in 0..8 {
                 out_buf[k + 8*x] = (0..8)
-                    .map(|n| mid_buf[n + 8*x] * DCT_COS_MUL[k + 8*n])
+                    .map(|n| mid_buf[n + 8*x] * COS_MUL_F[k + 8*n])
                     .sum();
             }
         }
@@ -137,7 +175,7 @@ impl Unit<f32> {
         for k in 0..8 {
             for y in 0..8 {
                 mid_buf[y + 8*k] = (0..8)
-                    .map(|n| in_buf[y + 8*n] * DCT_COS_MUL[n + 8*k])
+                    .map(|n| in_buf[y + 8*n] * COS_MUL_F[n + 8*k])
                     .sum();
             }
         }
@@ -145,8 +183,62 @@ impl Unit<f32> {
         for k in 0..8 {
             for x in 0..8 {
                 out_buf[k + 8*x] = (0..8)
-                    .map(|n| mid_buf[n + 8*x] * DCT_COS_MUL[n + 8*k])
+                    .map(|n| mid_buf[n + 8*x] * COS_MUL_F[n + 8*k])
                     .sum();
+            }
+        }
+
+        Unit(out_buf)
+    }
+}
+
+impl Unit<i32> {
+    pub fn dct(self) -> Self {
+        let in_buf = self.0;
+        let mut mid_buf = [0; 64];
+        let mut out_buf = [0; 64];
+
+        for k in 0..8 {
+            for y in 0..8 {
+                let c: i32 = (0..8)
+                    .map(|n| in_buf[y + 8*n] * DCT_MUL_I[k + 8*n])
+                    .sum();
+                mid_buf[y + 8*k] = c >> Q;
+            }
+        }
+    
+        for k in 0..8 {
+            for x in 0..8 {
+                let c: i32 = (0..8)
+                    .map(|n| mid_buf[n + 8*x] * DCT_MUL_I[k + 8*n])
+                    .sum();
+                out_buf[k + 8*x] = c >> Q;
+            }
+        }
+
+        Unit(out_buf)
+    }
+
+    pub fn inv_dct(self) -> Self {
+        let in_buf = self.0;
+        let mut mid_buf = [0; 64];
+        let mut out_buf = [0; 64];
+
+        for k in 0..8 {
+            for y in 0..8 {
+                let c: i32 = (0..8)
+                    .map(|n| in_buf[y + 8*n] * DCT_MUL_I[n + 8*k])
+                    .sum();
+                mid_buf[y + 8*k] = c >> Q;
+            }
+        }
+    
+        for k in 0..8 {
+            for x in 0..8 {
+                let c: i32 = (0..8)
+                    .map(|n| mid_buf[n + 8*x] * DCT_MUL_I[n + 8*k])
+                    .sum();
+                out_buf[k + 8*x] = c >> Q;
             }
         }
 
@@ -210,6 +302,38 @@ mod tests {
             .iter()
             .zip(new_spacial.into_iter())
             .for_each(|(&a, b)| assert_eq!(a, b));
+    }
+
+    #[test]
+    fn n_dct_inverese_equality() {
+        let spacial = [
+            16, 11, 10, 16,  24,  40,  51,  61,
+            12, 12, 14, 19,  26,  58,  60,  55,
+            14, 13, 16, 24,  40,  57,  69,  56,
+            14, 17, 22, 29,  51,  87,  80,  62,
+            18, 22, 37, 56,  68, 109, 103,  77,
+            24, 35, 55, 64,  81, 104, 113,  92,
+            49, 64, 78, 87, 103, 121, 120, 101,
+            72, 92, 95, 98, 112, 100, 103,  99,
+        ];
+
+        let new_spacial = Unit::new(spacial)
+            .dct()
+            .inv_dct()
+            .unwrap();
+        
+        new_spacial.chunks(8).for_each(|x| {
+            println!("{:?}", x);
+        });
+
+        let a = DCT_MUL_I.iter();
+
+        println!("{:?}", a);
+
+        spacial
+            .iter()
+            .zip(new_spacial.iter())
+            .for_each(|(a, b)| assert!((a - b).abs() < 8));
     }
 
     #[test]

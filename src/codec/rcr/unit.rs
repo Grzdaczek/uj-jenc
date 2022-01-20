@@ -1,5 +1,6 @@
 use std::ops::{Div, Mul};
 
+// Precomputed table
 const COS_MUL_F: [f32; 64] = [
     /*
     lazy_static! {
@@ -35,7 +36,9 @@ const COS_MUL_F: [f32; 64] = [
     0.353553, -0.490392,  0.461939, -0.415734,  0.353553, -0.277785,  0.191341, -0.097545,
 ];
 
-const Q: i32 = 21; // 32 - <sign bit> - 10 (due to dct output range for u8)
+const DCT_MUL_SHIFT: i32 = 21; // 32 - <sign bit> - 10 (due to DCT output range for u8)
+
+// Precomputed table
 const DCT_MUL_I: [i32; 64] = [
     /*
     lazy_static! {
@@ -71,12 +74,12 @@ const DCT_MUL_I: [i32; 64] = [
     741455, -1028427,  968757,  -871859,  741455,  -582557,  401273,  -204567,
 ];
 
-
-
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Unit<T>([T; 64]);
 
-impl<T> Unit<T> where T: Default + Copy + Div<Output = T> + Mul<Output = T> {
+impl<T> Unit<T>
+where T: Default + Copy + Div<Output = T> + Mul<Output = T>
+{
     pub fn new(data: [T; 64]) -> Self {
         Self(data)
     }
@@ -203,7 +206,7 @@ impl Unit<i32> {
                 let c: i32 = (0..8)
                     .map(|n| in_buf[y + 8*n] * DCT_MUL_I[k + 8*n])
                     .sum();
-                mid_buf[y + 8*k] = c >> Q;
+                mid_buf[y + 8*k] = c >> DCT_MUL_SHIFT;
             }
         }
     
@@ -212,7 +215,7 @@ impl Unit<i32> {
                 let c: i32 = (0..8)
                     .map(|n| mid_buf[n + 8*x] * DCT_MUL_I[k + 8*n])
                     .sum();
-                out_buf[k + 8*x] = c >> Q;
+                out_buf[k + 8*x] = c >> DCT_MUL_SHIFT;
             }
         }
 
@@ -229,7 +232,7 @@ impl Unit<i32> {
                 let c: i32 = (0..8)
                     .map(|n| in_buf[y + 8*n] * DCT_MUL_I[n + 8*k])
                     .sum();
-                mid_buf[y + 8*k] = c >> Q;
+                mid_buf[y + 8*k] = c >> DCT_MUL_SHIFT;
             }
         }
     
@@ -238,7 +241,7 @@ impl Unit<i32> {
                 let c: i32 = (0..8)
                     .map(|n| mid_buf[n + 8*x] * DCT_MUL_I[n + 8*k])
                     .sum();
-                out_buf[k + 8*x] = c >> Q;
+                out_buf[k + 8*x] = c >> DCT_MUL_SHIFT;
             }
         }
 
@@ -255,82 +258,43 @@ impl<T> IntoIterator for Unit<T> {
     }
 }
 
-// struct ImageUnitIterator<'a, T> {
-//     _image: &'a Image<T>
-// }
-
-// impl<'a, T> Iterator for ImageUnitIterator<'a, T> {
-//     type Item = T;
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         None
-//     }
-// }
-
-// impl<T> Image<T> {
-//     fn _iter(&self) -> ImageUnitIterator<T> {
-//         ImageUnitIterator {
-//             _image: self,
-//         }
-//     }
-// }
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn dct_inverese_equality() {
-        let spacial = [
-            16, 11, 10, 16,  24,  40,  51,  61,
-            12, 12, 14, 19,  26,  58,  60,  55,
-            14, 13, 16, 24,  40,  57,  69,  56,
-            14, 17, 22, 29,  51,  87,  80,  62,
-            18, 22, 37, 56,  68, 109, 103,  77,
-            24, 35, 55, 64,  81, 104, 113,  92,
-            49, 64, 78, 87, 103, 121, 120, 101,
-            72, 92, 95, 98, 112, 100, 103,  99,
-        ];
+    const DATA: [i32; 64] = [
+        16, 11, 10, 16,  24,  40,  51,  61,
+        12, 12, 14, 19,  26,  58,  60,  55,
+        14, 13, 16, 24,  40,  57,  69,  56,
+        14, 17, 22, 29,  51,  87,  80,  62,
+        18, 22, 37, 56,  68, 109, 103,  77,
+        24, 35, 55, 64,  81, 104, 113,  92,
+        49, 64, 78, 87, 103, 121, 120, 101,
+        72, 92, 95, 98, 112, 100, 103,  99,
+    ];
 
-        let new_spacial = Unit::new(spacial)
+    #[test]
+    fn f32_dct_inverese_equality() {
+        let new_spacial = Unit::new(DATA)
             .convert(|x| x as f32)
             .dct()
             .inv_dct()
             .convert(|x| x.round() as i32);
 
-        spacial
+        DATA
             .iter()
             .zip(new_spacial.into_iter())
             .for_each(|(&a, b)| assert_eq!(a, b));
     }
 
     #[test]
-    fn n_dct_inverese_equality() {
-        let spacial = [
-            16, 11, 10, 16,  24,  40,  51,  61,
-            12, 12, 14, 19,  26,  58,  60,  55,
-            14, 13, 16, 24,  40,  57,  69,  56,
-            14, 17, 22, 29,  51,  87,  80,  62,
-            18, 22, 37, 56,  68, 109, 103,  77,
-            24, 35, 55, 64,  81, 104, 113,  92,
-            49, 64, 78, 87, 103, 121, 120, 101,
-            72, 92, 95, 98, 112, 100, 103,  99,
-        ];
-
-        let new_spacial = Unit::new(spacial)
+    fn i32_dct_inverese_equality() {
+        let new_spacial = Unit::new(DATA)
             .dct()
             .inv_dct()
             .unwrap();
         
-        new_spacial.chunks(8).for_each(|x| {
-            println!("{:?}", x);
-        });
-
-        let a = DCT_MUL_I.iter();
-
-        println!("{:?}", a);
-
-        spacial
+        DATA
             .iter()
             .zip(new_spacial.iter())
             .for_each(|(a, b)| assert!((a - b).abs() < 8));
@@ -338,18 +302,7 @@ mod tests {
 
     #[test]
     fn zigzag_inverse_equality() {
-        let data = [
-             0,  1,  2,  3,  4,  5,  6,  7,
-             8,  9, 10, 11, 12, 13, 14, 15,
-            16, 17, 18, 19, 20, 21, 22, 23,
-            24, 25, 26, 27, 28, 29, 30, 31,
-            32, 33, 34, 35, 36, 37, 38, 39,
-            40, 41, 42, 43, 44, 45, 46, 47,
-            48, 49, 50, 51, 52, 53, 54, 55,
-            56, 57, 58, 59, 60, 61, 62, 63,
-        ];
-
-        let a = Unit::new(data);
+        let a = Unit::new(DATA);
         let b = a.clone()
             .zigzag()
             .inv_zigzag();

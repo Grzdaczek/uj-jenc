@@ -41,9 +41,6 @@ where T: Write
     assert!(image.width() % 8 == 0);
     assert!(image.height() % 8 == 0);
 
-    let w = image.width() / 8;
-    let h = image.height() / 8;
-
     output.write(&(image.width() as u16).to_be_bytes())?;
     output.write(&(image.height() as u16).to_be_bytes())?;
 
@@ -57,56 +54,36 @@ where T: Write
         .unwrap()
     )?;
 
-    for y in 0..h {
-        for x in 0..w {
-            let mut l_spacial = [0; 64];
-            let mut a_spacial = [0; 64];
-            let mut b_spacial = [0; 64];
+    image
+        .iter_block()
+        .for_each(|block| {
+            let mut l = [0; 64];
+            let mut a = [0; 64];
+            let mut b = [0; 64];
 
-            for i in 0..8 {
-                for j in 0..8 {
-                    let index = i + (8 * x) + (8 * y + j) * image.width();
-                    let color = image.data()[index];
-                    l_spacial[i + 8 * j] = color.l;
-                    a_spacial[i + 8 * j] = color.a;
-                    b_spacial[i + 8 * j] = color.b;
-                }
+            for i in 0..64 {
+                l[i] = block[i].l;
+                a[i] = block[i].a;
+                b[i] = block[i].b;
             }
 
-            output.write(&Unit::new(l_spacial)
-                .convert(|x| x as f32)
-                .dct()
-                .convert(|x| x as i32)
-                .quantize(settings.luma_table)
-                .convert(|x| x as i8)
-                .convert(|x| i8::to_be_bytes(x)[0])
-                .zigzag()
-                .unwrap()
-            )?;
+            let mut write_helper = |x: [i8; 64], t: Unit<i32>| -> Result<_> {
+                output.write(&Unit::new(x)
+                    .convert(|x| x as f32)
+                    .dct()
+                    .convert(|x| x as i32)
+                    .quantize(t)
+                    .convert(|x| i8::to_be_bytes(x as i8)[0])
+                    .zigzag()
+                    .unwrap()
+                )
+            };
 
-            output.write(&Unit::new(a_spacial)
-                .convert(|x| x as f32)
-                .dct()
-                .convert(|x| x as i32)
-                .quantize(settings.chroma_table)
-                .convert(|x| x as i8)
-                .convert(|x| i8::to_be_bytes(x)[0])
-                .zigzag()
-                .unwrap()
-            )?;
-
-            output.write(&Unit::new(b_spacial)
-                .convert(|x| x as f32)
-                .dct()
-                .convert(|x| x as i32)
-                .quantize(settings.chroma_table)
-                .convert(|x| x as i8)
-                .convert(|x| i8::to_be_bytes(x)[0])
-                .zigzag()
-                .unwrap()
-            )?;
-        }
-    };
+            // TODO: proper error handler
+            write_helper(l, settings.luma_table).unwrap();
+            write_helper(a, settings.chroma_table).unwrap();
+            write_helper(b, settings.chroma_table).unwrap();
+        });
 
     Ok(())
 }
@@ -123,6 +100,7 @@ where T: Read
     input.read_exact(&mut bytes)?;
     let height: u16 = u16::from_be_bytes(bytes);
     
+    // TODO: proper error handler
     assert!(width % 8 == 0);
     assert!(height % 8 == 0);
 
@@ -143,50 +121,32 @@ where T: Read
     
     for y in 0..h {
         for x in 0..w {
-            let mut l_raw = [0; 64];
-            let mut a_raw = [0; 64];
-            let mut b_raw = [0; 64];
+            let mut read_helper = |t: Unit<i32>| -> Result<[i8; 64]> {
+                let mut raw = [0; 64];
+                input.read_exact(&mut raw)?;
 
-            input.read_exact(&mut l_raw)?;
-            input.read_exact(&mut a_raw)?;
-            input.read_exact(&mut b_raw)?;
+                let data = Unit::new(raw)
+                    .inv_zigzag()
+                    .convert(|x| i8::from_be_bytes([x]) as i32)
+                    .inv_quantize(t)
+                    .convert(|x| x as f32)
+                    .inv_dct()
+                    .convert(|x| x as i8)
+                    .unwrap();
 
-            let l_spacial = Unit::new(l_raw)
-                .inv_zigzag()
-                .convert(|x| i8::from_be_bytes([x]))
-                .convert(|x| x as i32)
-                .inv_quantize(luma_table)
-                .convert(|x| x as f32)
-                .inv_dct()
-                .convert(|x| x as i8)
-                .unwrap();
+                Ok(data)
+            };
 
-            let a_spacial = Unit::new(a_raw)
-                .inv_zigzag()
-                .convert(|x| i8::from_be_bytes([x]))
-                .convert(|x| x as i32)
-                .inv_quantize(chroma_table)
-                .convert(|x| x as f32)
-                .inv_dct()
-                .convert(|x| x as i8)
-                .unwrap();
-
-            let b_spacial = Unit::new(b_raw)
-                .inv_zigzag()
-                .convert(|x| i8::from_be_bytes([x]))
-                .convert(|x| x as i32)
-                .inv_quantize(chroma_table)
-                .convert(|x| x as f32)
-                .inv_dct()
-                .convert(|x| x as i8)
-                .unwrap();
+            let l = read_helper(luma_table)?;
+            let a = read_helper(chroma_table)?;
+            let b = read_helper(chroma_table)?;
 
             for j in 0..8 {
                 for i in 0..8 {
                     let index = i + (8 * x) + (8 * y + j) * width as usize;
-                    data[index].l = l_spacial[i + 8 * j];
-                    data[index].a = a_spacial[i + 8 * j];
-                    data[index].b = b_spacial[i + 8 * j];
+                    data[index].l = l[i + 8 * j];
+                    data[index].a = a[i + 8 * j];
+                    data[index].b = b[i + 8 * j];
                 }
             }
         }
